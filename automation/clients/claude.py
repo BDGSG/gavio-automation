@@ -62,7 +62,13 @@ class ClaudeClient:
             err = str(e).lower()
             if self._fallback and any(kw in err for kw in _FALLBACK_KEYWORDS):
                 logger.warning("Claude credit/quota error -> fallback Kie.ai")
-                return self._fallback.generate(
-                    system_prompt, user_prompt, max_tokens=max_tokens
-                )
+                try:
+                    return self._fallback.generate(
+                        system_prompt, user_prompt, max_tokens=max_tokens
+                    )
+                except Exception as fallback_err:
+                    raise RuntimeError(
+                        f"Claude indisponible ({e}) et fallback Kie.ai a aussi "
+                        f"echoue ({fallback_err})"
+                    ) from fallback_err
             raise

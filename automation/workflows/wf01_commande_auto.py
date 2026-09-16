@@ -20,6 +20,11 @@ PARIS = ZoneInfo("Europe/Paris")
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
+# Statuts deja traites par ce workflow : un webhook order.updated declenche par
+# notre propre wc.update_order() ci-dessous ne doit pas relancer le traitement,
+# sinon boucle infinie (cf incident retry-storm aout 2026).
+_ALREADY_HANDLED_STATUSES = {"on-hold", "cancelled", "refunded", "completed", "failed"}
+
 
 def _extract(order: dict) -> dict:
     """Normalise les champs WooCommerce utiles."""
@@ -43,6 +48,7 @@ def _extract(order: dict) -> dict:
     return {
         "order_id": order.get("id"),
         "order_number": order.get("number") or order.get("id"),
+        "status": order.get("status", ""),
         "date_created": order.get("date_created", ""),
         "total": total,
         "total_fmt": f"{total:.2f}€",
@@ -120,6 +126,13 @@ def process_order(order_data: dict, decision_store):
         log.warning("Webhook sans order_id, ignore")
         return
 
+    if order["status"] in _ALREADY_HANDLED_STATUSES:
+        log.info(
+            "Order #%s deja au statut '%s', webhook ignore (anti-boucle)",
+            order["order_number"], order["status"],
+        )
+        return
+
     log.info("Processing order #%s (%s)", order["order_number"], order["total_fmt"])
 
     ok, issues = _antifraud(order)
@@ -147,10 +160,6 @@ def process_order(order_data: dict, decision_store):
         wc.update_order(order["order_id"], {"status": "on-hold"})
         decision_id = f"order-{order['order_id']}-{uuid4().hex[:8]}"
         callback = f"{Config.WEBHOOK_BASE_URL}/decision/{decision_id}"
-        keyboard = [[
-            {"text": "✅ Forcer validation", "url": f"{callback}?action=approve"},
-            {"text": "❌ Annuler", "url": f"{callback}?action=cancel"},
-        ]]
         issues_txt = "\n".join(f"❌ {i}" for i in issues)
         msg = (
             f"⚠️ *Commande #{order['order_number']} — VERIF ECHOUEE*\n\n"
@@ -159,11 +168,36 @@ def process_order(order_data: dict, decision_store):
             f"Probleme(s) :\n{issues_txt}\n\n"
             f"⏸️ Commande on-hold."
         )
-        tg.send_message(msg, inline_keyboard=keyboard)
+
+        # decision_store doit toujours etre arme, meme si l'envoi Telegram
+        # plante (garde-fou 24h) -> on cree la decision AVANT la notif.
         decision_store.create(
             decision_id=decision_id,
             context=order,
             callback=_on_decision,
             timeout_seconds=24 * 3600,
         )
+
+        # WEBHOOK_BASE_URL non configure -> les boutons pointeraient vers
+        # localhost et ne servent a rien depuis Telegram. On previent sans
+        # boutons plutot que de planter tout le sendMessage.
+        if Config.WEBHOOK_BASE_URL.startswith("http://localhost"):
+            log.warning("WEBHOOK_BASE_URL non configure, notif sans boutons")
+            try:
+                tg.send_message(
+                    msg + "\n\n_(WEBHOOK_BASE_URL non configure : validation "
+                    "manuelle via wp-admin ou API)_"
+                )
+            except Exception as e:
+                log.error("Envoi notif Telegram (sans boutons) echoue : %s", e)
+        else:
+            keyboard = [[
+                {"text": "✅ Forcer validation", "url": f"{callback}?action=approve"},
+                {"text": "❌ Annuler", "url": f"{callback}?action=cancel"},
+            ]]
+            try:
+                tg.send_message(msg, inline_keyboard=keyboard)
+            except Exception as e:
+                log.error("Envoi notif Telegram (avec boutons) echoue : %s", e)
+
         log.info("Order #%s on-hold, awaiting decision", order["order_number"])

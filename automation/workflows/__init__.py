@@ -90,7 +90,10 @@ def _build_kie_fallback():
             }
             r = self.session.post(url, json=payload, timeout=60)
             r.raise_for_status()
-            return r.json()["choices"][0]["message"]["content"]
+            data = r.json()
+            if "choices" not in data:
+                raise RuntimeError(f"Reponse Kie.ai inattendue : {data}")
+            return data["choices"][0]["message"]["content"]
 
     return _KieMin(Config.KIE_API_KEY)
 

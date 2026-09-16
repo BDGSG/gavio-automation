@@ -39,37 +39,42 @@ PILIER_WEIGHTS = {
 
 PILIER_DESCRIPTIONS = {
     "test": (
-        "Test produit detaille : un produit hi-tech specifique, prise en main, "
-        "qualites, defauts, verdict. Exemples : 'Test du chargeur magnetique 3-en-1', "
-        "'Test trottinette electrique tout-terrain : 1 mois en conditions reelles'."
+        "Test produit detaille : une paire de lunettes (soleil ou vue) d'une marque "
+        "specifique du catalogue Gavio, prise en main, qualites, defauts, verdict. "
+        "Exemples : 'Test des lunettes de soleil Nike Windtrack : un mois au quotidien', "
+        "'Test Skechers SE00058 : legerete et confort a l'epreuve'."
     ),
     "comparatif": (
-        "Comparatif / Versus / Top : classement, comparaison de plusieurs produits "
-        "ou marques. Exemples : 'Apple Watch vs Galaxy Watch 2026', "
-        "'Top 5 chargeurs sans fil rapides', 'Aspirateurs robots premium 2026'."
+        "Comparatif / Versus / Top : classement, comparaison de plusieurs modeles "
+        "ou marques de lunettes. Exemples : 'Ray-Ban vs Nike : quelles lunettes de "
+        "soleil choisir en 2026', 'Top 5 montures de vue legeres pour porter toute "
+        "la journee', 'Verres polarises vs verres teintes classiques'."
     ),
     "guide": (
-        "Guide d'achat ou tutoriel pratique : comment choisir, comment utiliser. "
-        "Exemples : 'Comment choisir sa premiere trottinette electrique', "
-        "'Guide complet du chargeur sans fil : MagSafe vs Qi'."
+        "Guide d'achat ou tutoriel pratique : comment choisir sa monture, "
+        "comment entretenir ses lunettes. Exemples : 'Comment choisir sa forme de "
+        "monture selon son visage', 'Guide complet des indices de protection UV "
+        "pour lunettes de soleil', 'Lunettes de vue : verres fins vs verres "
+        "amincis, que choisir ?'."
     ),
     "niche": (
-        "Sujet niche tech pointu : technologies emergentes, deep dives. "
-        "Exemples : 'GaN vs silicium : pourquoi vos chargeurs deviennent plus petits', "
-        "'Lidar dans les aspirateurs robots : ca sert vraiment a quoi ?'."
+        "Sujet niche optique pointu : technologies de verres, deep dives. "
+        "Exemples : 'Verres polarises : comment ca marche vraiment ?', "
+        "'Traitement anti-lumiere bleue : utile ou marketing ?', "
+        "'Lunettes de sport : pourquoi une monture technique change tout'."
     ),
     "lifestyle": (
-        "Lifestyle hi-tech : usages au quotidien, habitudes, productivite, EDC. "
-        "Exemples : '5 gadgets indispensables pour le bureau a domicile', "
-        "'Mon EDC tech 2026 : 7 objets que j'emporte partout'."
+        "Lifestyle autour des lunettes : usages au quotidien, style, tendances. "
+        "Exemples : '5 lunettes de soleil tendance pour cet ete', "
+        "'Comment associer ses lunettes a son style vestimentaire', "
+        "'Lunettes de vue et teletravail : proteger ses yeux des ecrans'."
     ),
 }
 
 PRIORITY_KEYWORDS = [
-    "chargeur sans fil magnetique", "trottinette electrique", "aspirateur robot",
-    "smart bidet toilettes connectees", "drone 4K pliable", "ecran portable usb-c",
-    "casque audio sans fil pas cher", "station charge magsafe iphone",
-    "videoprojecteur portable 4K", "purificateur air maison",
+    "lunettes de soleil", "lunettes de vue", "lunettes homme", "lunettes femme",
+    "monture optique", "verres polarises", "lunettes de soleil pas cher",
+    "lunettes de vue tendance", "protection uv lunettes", "lunettes de sport",
 ]
 
 # Stockage local des sujets traites (pour eviter les doublons)
@@ -116,9 +121,10 @@ def _generate_topic(pilier: str, history: list) -> dict:
     keywords_text = ", ".join(random.sample(PRIORITY_KEYWORDS, k=5))
 
     system = (
-        "Tu es expert SEO et editor en chef d'un blog tech francais (Gavio). "
-        "Tu proposes UN seul sujet d'article precis, percutant, oriente "
-        "search intent FR. Public : early adopters tech, 25-45 ans, France/Europe."
+        "Tu es expert SEO et editor en chef du blog de Gavio, une boutique "
+        "francaise de lunettes (soleil et vue). Tu proposes UN seul sujet "
+        "d'article precis, percutant, oriente search intent FR. "
+        "Public : acheteurs de lunettes, 20-50 ans, France."
     )
     user = f"""Pilier : {pilier}
 Description : {PILIER_DESCRIPTIONS[pilier]}
@@ -151,9 +157,9 @@ def _generate_article(topic: dict, pilier: str) -> str:
     """Genere l'article HTML complet (~1800 mots)."""
     claude = get_claude()
     system = (
-        "Tu es un journaliste tech francais expert SEO. Tu ecris des articles "
-        "approfondis, factuels, sans bullshit. Style direct, premium mais "
-        "accessible. Tu integres naturellement les mots-cles SEO."
+        "Tu es un journaliste francais expert SEO specialise optique/lunetterie. "
+        "Tu ecris des articles approfondis, factuels, sans bullshit. Style direct, "
+        "premium mais accessible. Tu integres naturellement les mots-cles SEO."
     )
     user = f"""Ecris l'article complet en HTML semantique.
 
@@ -186,8 +192,8 @@ def _generate_hero_image(topic: dict) -> bytes | None:
         return None
     try:
         prompt = (
-            f"editorial tech magazine cover, ultra premium product photography, "
-            f"clean minimalist composition, {topic['primary_keyword']}, "
+            f"editorial eyewear magazine cover, ultra premium glasses product "
+            f"photography, clean minimalist composition, {topic['primary_keyword']}, "
             f"soft studio lighting, dark gradient background, 16:9, no text, "
             f"shot on Hasselblad, photorealistic"
         )
