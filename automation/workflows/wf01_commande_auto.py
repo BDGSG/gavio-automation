@@ -23,7 +23,7 @@ EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 # Statuts deja traites par ce workflow : un webhook order.updated declenche par
 # notre propre wc.update_order() ci-dessous ne doit pas relancer le traitement,
 # sinon boucle infinie (cf incident retry-storm aout 2026).
-_ALREADY_HANDLED_STATUSES = {"on-hold", "cancelled", "refunded", "completed", "failed"}
+_ALREADY_HANDLED_STATUSES = {"on-hold", "cancelled", "trash", "refunded", "completed", "failed"}
 
 
 def _extract(order: dict) -> dict:
@@ -131,6 +131,22 @@ def process_order(order_data: dict, decision_store):
             "Order #%s deja au statut '%s', webhook ignore (anti-boucle)",
             order["order_number"], order["status"],
         )
+        return
+
+    # Commande robot/spam : ni email, ni nom, ni paiement -> annulee sans alerte.
+    if (
+        not order["client_email"]
+        and not order["client_name"]
+        and not order["stripe_payment_id"]
+        and not order_data.get("date_paid")
+    ):
+        wc.update_order(order["order_id"], {"status": "cancelled"})
+        wc.add_order_note(
+            order["order_id"],
+            "[GAVIO] Annulee automatiquement : aucune info client ni paiement (robot).",
+            customer_note=False,
+        )
+        log.warning("Order #%s annulee (vide, robot)", order["order_number"])
         return
 
     log.info("Processing order #%s (%s)", order["order_number"], order["total_fmt"])
